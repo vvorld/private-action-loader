@@ -4,6 +4,7 @@ import { parse } from 'yaml';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { sync } from 'rimraf';
+import { fork } from 'child_process';
 
 export function setInputs(action: any): void {
   if (!action.inputs) {
@@ -29,6 +30,13 @@ export function setInputs(action: any): void {
     core.info(`Input ${i} not set.  Using default '${action.inputs[i].default}'`);
     process.env[formattedInputName] = action.inputs[i].default;
   }
+}
+
+async function asyncFork(path: string): Promise<number | null> {
+  return new Promise(resolve => {
+    const forkedAction = fork(path);
+    forkedAction.on('exit', resolve);
+  })
 }
 
 export async function runAction(opts: {
@@ -85,7 +93,7 @@ export async function runAction(opts: {
   core.endGroup();
 
   core.info(`Starting private action ${action.name}`);
-  await exec.exec(`node ${join(actionPath, action.runs.main)}`);
+  await asyncFork(join(actionPath, action.runs.main));
 
   core.info(`Cleaning up action`);
   sync(opts.workDirectory);
